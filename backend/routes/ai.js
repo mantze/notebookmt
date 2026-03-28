@@ -14,19 +14,23 @@ router.post("/chat", async (req, res) => {
   try {
     const { notebook_id, message, conversation_id } = req.body
     const db = getDatabase()
+    
     const response = await axios.post(ENDPOINT + "/chat/completions", { 
       model: MODEL, 
       messages: [
-        { role: "system", content: "你係 NotebookMT AI 助手，用繁體中文回覆。" }, 
+        { role: "system", content: "你係 NotebookMT AI 助手，由 Alibaba 通義千問 Qwen 模型驅動。用繁體中文回覆。" }, 
         { role: "user", content: message }
-      ] 
+      ],
+      max_tokens: 500
     }, { 
       headers: { 
         "Authorization": "Bearer " + API_KEY, 
         "Content-Type": "application/json" 
       } 
     })
+    
     const aiResponse = response.data.choices && response.data.choices[0] && response.data.choices[0].message.content || "無回應"
+    
     let convId = conversation_id
     if (!convId) { 
       const r = db.prepare("INSERT INTO conversations (notebook_id, user_id, title) VALUES (?, ?, ?)").run(notebook_id, req.user.id, message.substring(0, 30))
@@ -34,6 +38,7 @@ router.post("/chat", async (req, res) => {
     }
     db.prepare("INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)").run(convId, "user", message)
     db.prepare("INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)").run(convId, "assistant", aiResponse)
+    
     res.json({ success: true, data: { conversation_id: convId, message: aiResponse, model: MODEL } })
   } catch (error) { 
     console.error("DashScope Error:", error.response ? error.response.data : error.message)
@@ -41,10 +46,7 @@ router.post("/chat", async (req, res) => {
   }
 })
 
-router.post("/summarize", async (req, res) => { 
-  res.json({ success: true, data: { summary: "AI 摘要功能開發中..." } }) 
-})
-
+router.post("/summarize", async (req, res) => { res.json({ success: true, data: { summary: "AI 摘要" } }) })
 router.post("/search", async (req, res) => { 
   const { notebook_id, query } = req.body
   const db = getDatabase()
